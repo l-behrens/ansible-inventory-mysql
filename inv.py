@@ -7,7 +7,8 @@ try:
     import configparser
 except ImportError:
     import ConfigParser as configparser
-import pymysql
+import pg8000
+#import pymysql
 import os
 try:
     import json
@@ -15,10 +16,10 @@ except ImportError:
     import simplejson as json
 
 
-class AnsibleInventoryMySQL:
+class AnsibleInventoryPSQL:
     """Manage Ansible inventory using MySQL compabitible database"""
 
-    def __init__(self, db_server='localhost', db_port=3306, db_name='ansible_inv', db_user='ans', db_password='123123'):
+    def __init__(self, db_server='127.0.0.1', db_port=5432, db_name='ansible_inv', db_user='ans', db_password='123123'):
         self.db_server = db_server
         self.db_port = db_port
         self.db_name = db_name
@@ -26,15 +27,17 @@ class AnsibleInventoryMySQL:
         self.db_password = db_password
 
     def connect(self):
-        self.connection = pymysql.connect(host=self.db_server, port=self.db_port,
-                                          user=self.db_user, passwd=self.db_password, db=self.db_name)
+
+        self.connection = pg8000.connect(user=self.db_user, database=self.db_name, host=self.db_server, password=self.db_password, port=self.db_port)
+#        self.connection = pymysql.connect(host=self.db_server, port=self.db_port,
+#                                          user=self.db_user, passwd=self.db_password, db=self.db_name)
 
     def group_list(self):
         """Create a JSON list of hosts to work with Ansible"""
         inventory = {}
         cur = self.connection.cursor()
         cur.execute(
-            "SELECT `group`, `type`, `name` FROM MyGroups ORDER BY `group`, `type`, `name`")
+            "SELECT grp, type, name FROM MyGroups ORDER BY grp, type, name")
         for row in cur.fetchall():
             group = row[0]
             if group is None:
@@ -52,7 +55,7 @@ class AnsibleInventoryMySQL:
             elif row[1] == 'c':
                 inventory[group]['children'].append(row[2])
         cur.execute(
-            "SELECT `name`, `key`, `value` FROM vars WHERE `type`=%s ORDER BY `name`",
+            "SELECT name, key, value FROM vars WHERE type=%s ORDER BY name",
             ('g',
              ))
         for row in cur.fetchall():
@@ -75,14 +78,14 @@ class AnsibleInventoryMySQL:
         """Add a host or child to inventory, safely ignore if host or child exists"""
         cur = self.connection.cursor()
         cur.execute(
-            "SELECT COUNT(*) FROM MyGroups WHERE `group`=%s AND `name`=%s AND `type`=%s",
+            "SELECT COUNT(*) FROM MyGroups WHERE grp=%s AND name=%s AND type=%s",
             (group,
              name,
              type))
         row = cur.fetchone()
         if row[0] == 0:
             cur.execute(
-                "INSERT INTO MyGroups(`group`, `name`, `type`) values (%s, %s, %s)",
+                "INSERT INTO MyGroups(grp, name, type) values (%s, %s, %s)",
                 (group,
                  name,
                  type))
@@ -93,7 +96,7 @@ class AnsibleInventoryMySQL:
         """Delete host(s) or child(ren) from inventory"""
         cur = self.connection.cursor()
         cur.execute(
-            "DELETE FROM MyGroups WHERE `group`=%s AND `name`=%s AND `type`=%s",
+            "DELETE FROM MyGroups WHERE grp=%s AND name=%s AND type=%s",
             (group,
              name,
              type))
@@ -104,14 +107,14 @@ class AnsibleInventoryMySQL:
         """Add host/group vars to inventory, safely ignore if exists"""
         cur = self.connection.cursor()
         cur.execute(
-            "SELECT COUNT(*) FROM vars WHERE `name`=%s AND `type`=%s AND `key`=%s",
+            "SELECT COUNT(*) FROM vars WHERE name=%s AND type=%s AND key=%s",
             (name,
              type,
              key))
         row = cur.fetchone()
         if row[0] == 0:
             cur.execute(
-                "INSERT INTO vars(`name`, `type`, `key`, `value`) values (%s, %s, %s, %s)",
+                "INSERT INTO vars(name, type, key, value) values (%s, %s, %s, %s)",
                 (name,
                  type,
                  key,
@@ -119,7 +122,7 @@ class AnsibleInventoryMySQL:
             self.connection.commit()
         else:
             cur.execute(
-                "UPDATE vars SET `value`=%s WHERE `name`=%s AND `type`=%s AND `key`=%s",
+                "UPDATE vars SET value=%s WHERE name=%s AND type=%s AND key=%s",
                 (value,
                  name,
                  type,
@@ -132,11 +135,11 @@ class AnsibleInventoryMySQL:
         cur = self.connection.cursor()
         if key is None:
             cur.execute(
-                "DELETE FROM vars WHERE `name`=%s AND `type`=%s", (name, type))
+                "DELETE FROM vars WHERE name=%s AND type=%s", (name, type))
             self.connection.commit()
         else:
             cur.execute(
-                "DELETE FROM vars WHERE `name`=%s AND `type`=%s AND `key`=%s",
+                "DELETE FROM vars WHERE name=%s AND type=%s AND key=%s",
                 (name,
                  type,
                  key))
@@ -147,7 +150,7 @@ class AnsibleInventoryMySQL:
         """Return host info"""
         cur = self.connection.cursor()
         cur.execute(
-            "SELECT `key`, `value` FROM vars WHERE `name`=%s AND `type`=%s", (name, 'h'))
+            "SELECT key, value FROM vars WHERE name=%s AND type=%s", (name, 'h'))
         infos = {}
         for row in cur.fetchall():
             infos[row[0]] = row[1]
@@ -241,9 +244,9 @@ def main():
         db_name = config.get("db", "name")
         db_user = config.get("db", "user")
         db_password = config.get("db", "password")
-        inv = AnsibleInventoryMySQL(db_server, db_port, db_name, db_user, db_password)
+        inv = AnsibleInventoryPSQL(db_server, db_port, db_name, db_user, db_password)
     except configparser.NoSectionError:
-        inv = AnsibleInventoryMySQL()
+        inv = AnsibleInventoryPSQL()
 
     inv.connect()
     if len(sys.argv) > 1:
@@ -303,6 +306,14 @@ def main():
     else:
         inv.print_help()
     inv.connection.close()
+
+def test():
+    conn = pg8000.connect(user="ans", database="ansible_inv", host="127.0.0.1", password="123123")
+    cursor = conn.cursor()
+    cursor.execute("select version();")
+    results = cursor.fetchall()
+    for row in results:
+        print(row)
 
 
 if __name__ == "__main__":
