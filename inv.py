@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """ansible-inventory-mysql: Manage Ansible inventory using MySQL compabitible database"""
 
-import argparse
+#import argparse
 import sys
 try:
     import configparser
@@ -221,7 +221,7 @@ def parse_config():
 
     default_config = {
         "server": "127.0.0.1",
-        "port": 3306,
+        "port": 5432,
         "name": "ansible_inv",
         "user": "ans",
         "password": "123123"
