@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """ansible-inventory-mysql: Manage Ansible inventory using MySQL compabitible database"""
 
+import argparse
 import sys
 try:
     import configparser
@@ -33,7 +34,7 @@ class AnsibleInventoryMySQL:
         inventory = {}
         cur = self.connection.cursor()
         cur.execute(
-            "SELECT `group`, `type`, `name` FROM groups ORDER BY `group`, `type`, `name`")
+            "SELECT `group`, `type`, `name` FROM MyGroups ORDER BY `group`, `type`, `name`")
         for row in cur.fetchall():
             group = row[0]
             if group is None:
@@ -74,14 +75,14 @@ class AnsibleInventoryMySQL:
         """Add a host or child to inventory, safely ignore if host or child exists"""
         cur = self.connection.cursor()
         cur.execute(
-            "SELECT COUNT(*) FROM groups WHERE `group`=%s AND `name`=%s AND `type`=%s",
+            "SELECT COUNT(*) FROM MyGroups WHERE `group`=%s AND `name`=%s AND `type`=%s",
             (group,
              name,
              type))
         row = cur.fetchone()
         if row[0] == 0:
             cur.execute(
-                "INSERT INTO groups(`group`, `name`, `type`) values (%s, %s, %s)",
+                "INSERT INTO MyGroups(`group`, `name`, `type`) values (%s, %s, %s)",
                 (group,
                  name,
                  type))
@@ -92,7 +93,7 @@ class AnsibleInventoryMySQL:
         """Delete host(s) or child(ren) from inventory"""
         cur = self.connection.cursor()
         cur.execute(
-            "DELETE FROM groups WHERE `group`=%s AND `name`=%s AND `type`=%s",
+            "DELETE FROM MyGroups WHERE `group`=%s AND `name`=%s AND `type`=%s",
             (group,
              name,
              type))
@@ -216,7 +217,7 @@ def parse_config():
             break
 
     default_config = {
-        "server": "localhost",
+        "server": "127.0.0.1",
         "port": 3306,
         "name": "ansible_inv",
         "user": "ans",
@@ -227,6 +228,9 @@ def parse_config():
 
     return config
 
+def parse_args():
+
+    pass
 
 def main():
 

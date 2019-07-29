@@ -1,5 +1,5 @@
 -- Store hosts, groups and group children
-CREATE TABLE groups (
+CREATE TABLE MyGroups (
 	`id` INTEGER NOT NULL AUTO_INCREMENT,
 	`group` TEXT,
 	`name` TEXT,
