@@ -1,11 +1,13 @@
-ansible-inventory-mysql
+ansible-inventory-psql
 =======================
 
-Simple Python script to manage Ansible inventory in mySQL
+Based on phamhongvies work. All credit goes to him: https://github.com/phamhongviet/ansible-inventory-mysql
+
+Simple Python script to manage Ansible inventory in psql
 
 # Requirement
 * Python 2.7 or Python >= 3.4
-* PyMySQL
+* pg8000
 
 # How to use
 
@@ -17,13 +19,15 @@ Create a mySQL database and user, `ansible_inv` and `ans` for example.
 
 ```
 CREATE DATABASE ansible_inv;
-GRANT ALL PRIVILEGES ON ansible_inv.* TO 'ans'@'localhost' IDENTIFIED BY '123123';
-FLUSH PRIVILEGES;
+CREATE user ans;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ans;
+GRANT CONNECT ON DATABASE ansible_inv TO ans;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ans;
 QUIT;
 ```
 
 ```
-mysql -u ans -p123123 ansible_inv < inv.sql
+psql -U ans --host=127.0.0.1 --port=5432 -d ansible_inv < inv.sql
 ```
 
 ### Configuration
@@ -33,7 +37,7 @@ Provide database information in config file, for example:
 ```
 [db]
 server = localhost
-port = 3306
+port = 5432
 name = ansible_inv
 user = ans
 password = 123123
